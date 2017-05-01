@@ -5,16 +5,6 @@ $(function () {
         self.control = parameters[0];
         self.connection = parameters[1];
 
-        // machine IDs (these match the SeeMeCNC fork of Repetier).
-        const SMC_ORION = 1;
-        const SMC_MAX_V2 = 2;
-        const SMC_ERIS = 3;
-        const SMC_MAX_V3 = 5;
-        const SMC_H2 = 6;
-        const DEFAULT_PROBE_HEIGHT = 25;
-
-        self.machineType = 0;
-
         self.firmwareRegEx = /FIRMWARE_NAME:([^\s]+)/i;
         self.repetierRegEx = /Repetier_([^\s]*)/i;
 
@@ -23,11 +13,9 @@ $(function () {
         // this creates functions that can be set here in code and can be referenced
         // externally via the jinja2 file.
         self.isRepetierFirmware = ko.observable(false);
-        self.isSeeMeCNCPrinter = ko.observable(false);
 
         self.eepromData = ko.observableArray([]);
 
-        self.printerType = ko.observable("");
         self.statusMessage = ko.observable("");
         self.statusCalResult = ko.observable("");
 
@@ -41,6 +29,10 @@ $(function () {
 
         var oldDeviation = 0.0;
         var newDeviation = 0.0;
+
+	var ZProbeXOffset = 0.0;
+	var ZProbeYOffset = 0.0;
+	var ZProbeHeight = 0.0;
 
         // dc42 code
         var initialPoints = 10; // Was 7.  If I'd wanted it changed, I would have changed it myself!
@@ -59,23 +51,23 @@ $(function () {
         var oldRodLength = 0;
         var oldRadius = 0;
         var oldHomedHeight = 0;
-        var oldXStop = 0;
-        var oldYStop = 0;
-        var oldZStop = 0;
-        var oldXPos = 0;
-        var oldYPos = 0;
-        var oldZPos = 0;
+        var oldAStop = 0;
+        var oldBStop = 0;
+        var oldCStop = 0;
+        var oldAPos = 0;
+        var oldBPos = 0;
+        var oldCPos = 0;
         var stepsPerMM = 0;
 
-        var newXStop = 0.0;
-        var newYStop = 0.0;
-        var newZStop = 0.0;
+        var newAStop = 0.0;
+        var newBStop = 0.0;
+        var newCStop = 0.0;
         var newRodLength = 0.0;
         var newRadius = 0.0;
         var newHomedHeight = 0.0;
-        var newXPos = 0.0;
-        var newYPos = 0.0;
-        var newZPos = 0.0;
+        var newAPos = 0.0;
+        var newBPos = 0.0;
+        var newCPos = 0.0;
 
         var m665 = "";
         var m666 = "";
@@ -162,16 +154,16 @@ $(function () {
           return rslt;
         }
 
-        var DeltaParameters = function (diagonal, radius, height, xstop, ystop, zstop, xadj, yadj, zadj) {
+        var DeltaParameters = function (diagonal, radius, height, astop, bstop, cstop, aadj, badj, cadj) {
           this.diagonal = diagonal;
           this.radius = radius;
           this.homedHeight = height;
-          this.xstop = xstop;
-          this.ystop = ystop;
-          this.zstop = zstop;
-          this.xadj = xadj;
-          this.yadj = yadj;
-          this.zadj = zadj;
+          this.astop = astop;
+          this.bstop = bstop;
+          this.cstop = cstop;
+          this.aadj = aadj;
+          this.badj = badj;
+          this.cadj = cadj;
           this.Recalc();
         }
 
@@ -208,12 +200,12 @@ $(function () {
         DeltaParameters.prototype.Recalc = function () {
           this.towerX = [];
           this.towerY = [];
-          this.towerX.push(-(this.radius * Math.cos((30 + this.xadj) * degreesToRadians)));
-          this.towerY.push(-(this.radius * Math.sin((30 + this.xadj) * degreesToRadians)));
-          this.towerX.push(+(this.radius * Math.cos((30 - this.yadj) * degreesToRadians)));
-          this.towerY.push(-(this.radius * Math.sin((30 - this.yadj) * degreesToRadians)));
-          this.towerX.push(-(this.radius * Math.sin(this.zadj * degreesToRadians)));
-          this.towerY.push(+(this.radius * Math.cos(this.zadj * degreesToRadians)));
+          this.towerX.push(-(this.radius * Math.cos((30 + this.aadj) * degreesToRadians)));
+          this.towerY.push(-(this.radius * Math.sin((30 + this.aadj) * degreesToRadians)));
+          this.towerX.push(+(this.radius * Math.cos((30 - this.badj) * degreesToRadians)));
+          this.towerY.push(-(this.radius * Math.sin((30 - this.badj) * degreesToRadians)));
+          this.towerX.push(-(this.radius * Math.sin(this.cadj * degreesToRadians)));
+          this.towerY.push(+(this.radius * Math.cos(this.cadj * degreesToRadians)));
 
           this.Xbc = this.towerX[2] - this.towerX[1];
           this.Xca = this.towerX[0] - this.towerX[2];
@@ -235,8 +227,8 @@ $(function () {
 
         DeltaParameters.prototype.ComputeDerivative = function (deriv, ha, hb, hc) {
           var perturb = 0.2;			// perturbation amount in mm or degrees
-          var hiParams = new DeltaParameters(this.diagonal, this.radius, this.homedHeight, this.xstop, this.ystop, this.zstop, this.xadj, this.yadj, this.zadj);
-          var loParams = new DeltaParameters(this.diagonal, this.radius, this.homedHeight, this.xstop, this.ystop, this.zstop, this.xadj, this.yadj, this.zadj);
+          var hiParams = new DeltaParameters(this.diagonal, this.radius, this.homedHeight, this.astop, this.bstop, this.cstop, this.aadj, this.badj, this.cadj);
+          var loParams = new DeltaParameters(this.diagonal, this.radius, this.homedHeight, this.astop, this.bstop, this.cstop, this.aadj, this.badj, this.cadj);
           switch (deriv) {
             case 0:
             case 1:
@@ -249,13 +241,13 @@ $(function () {
               break;
 
             case 4:
-              hiParams.xadj += perturb;
-              loParams.xadj -= perturb;
+              hiParams.aadj += perturb;
+              loParams.aadj -= perturb;
               break;
 
             case 5:
-              hiParams.yadj += perturb;
-              loParams.yadj -= perturb;
+              hiParams.badj += perturb;
+              loParams.badj -= perturb;
               break;
 
             case 6:
@@ -275,11 +267,11 @@ $(function () {
 
         // Make the average of the endstop adjustments zero, or make all emndstop corrections negative, without changing the individual homed carriage heights
         DeltaParameters.prototype.NormaliseEndstopAdjustments = function () {
-          var eav = (firmware == "Marlin" || firmware == "MarlinRC" || firmware == "Repetier") ? Math.min(this.xstop, Math.min(this.ystop, this.zstop))
-            : (this.xstop + this.ystop + this.zstop) / 3.0;
-            this.xstop -= eav;
-            this.ystop -= eav;
-            this.zstop -= eav;
+          var eav = (firmware == "Marlin" || firmware == "MarlinRC" || firmware == "Repetier") ? Math.min(this.astop, Math.min(this.bstop, this.cstop))
+            : (this.astop + this.bstop + this.cstop) / 3.0;
+            this.astop -= eav;
+            this.bstop -= eav;
+            this.cstop -= eav;
             this.homedHeight += eav;
             this.homedCarriageHeight += eav;				// no need for a full recalc, this is sufficient
         }
@@ -293,12 +285,12 @@ $(function () {
         //  Z tower Y position adjustment
         //  Diagonal rod length adjustment
         DeltaParameters.prototype.Adjust = function (numFactors, v, norm) {
-          var oldCarriageHeightA = this.homedCarriageHeight + this.xstop;	// save for later
+          var oldCarriageHeightA = this.homedCarriageHeight + this.astop;	// save for later
 
           // Update endstop adjustments
-          this.xstop += v[0];
-          this.ystop += v[1];
-          this.zstop += v[2];
+          this.astop += v[0];
+          this.bstop += v[1];
+          this.cstop += v[2];
           if (norm) {
             this.NormaliseEndstopAdjustments();
           }
@@ -307,8 +299,8 @@ $(function () {
             this.radius += v[3];
 
             if (numFactors >= 6) {
-              this.xadj += v[4];
-              this.yadj += v[5];
+              this.aadj += v[4];
+              this.badj += v[5];
 
               if (numFactors == 7) {
                 this.diagonal += v[6];
@@ -320,7 +312,7 @@ $(function () {
 
           // Adjusting the diagonal and the tower positions affects the homed carriage height.
           // We need to adjust homedHeight to allow for this, to get the change that was requested in the endstop corrections.
-          var heightError = this.homedCarriageHeight + this.xstop - oldCarriageHeightA - v[0];
+          var heightError = this.homedCarriageHeight + this.astop - oldCarriageHeightA - v[0];
           this.homedHeight -= heightError;
           this.homedCarriageHeight -= heightError;
         }
@@ -377,33 +369,31 @@ $(function () {
 
         function setParameters() {
 
-          stepsPerMM = 80;
-          switch (self.machineType) {
-            case SMC_ORION:
-              bedRadius = 80;
-              break;
-
-            case SMC_MAX_V2:
-              bedRadius = 140;
-              break;
-
-            case SMC_ERIS:
-              bedRadius = 65;
-              break;
-
-            case SMC_MAX_V3:
-              bedRadius = 140;
-              break;
-
-            case SMC_H2:
-              bedRadius = 70;
-              break;
-          }
           // assign the initial values we need to get started.
 
           var eepromData = self.eepromData();
           _.each(eepromData, function (data) {
             switch (data.position) {
+	      case "11": // Steps per mm
+		stepsPerMM = parseFloat(data.value);
+	        break;
+
+	      case "808": // Z-Probe height
+		ZProbeHeight = parseFloat(data.value);
+	        break;
+
+	      case "800": // Z-Probe X offset 
+		ZProbeXOffset = parseFloat(data.value);
+	        break;
+
+	      case "804": // Z-Probe Y offset
+		ZProbeYOffset = parseFloat(data.value);
+	        break;
+
+	      case "925": // Bed Radius 
+		bedRadius = parseFloat(data.value);
+	        break;
+	
               case "153":   // Max Z height
                 oldHomedHeight = parseFloat(data.value);
                 console.log("Starting Homed Height: " + oldHomedHeight);
@@ -419,34 +409,34 @@ $(function () {
                 console.log("Starting Diagonal Radius: " + oldRadius);
                 break;
 
-              case "893":   // X Endstop offset
-                oldXStop = parseInt(data.value);
-                console.log("Starting X Endstop offset: " + oldXStop);
+              case "893":   // A Endstop offset
+                oldAStop = parseInt(data.value);
+                console.log("Starting A Endstop offset: " + oldAStop);
                 break;
 
               case "895":   // Y Endstop offset
-                oldYStop = parseInt(data.value);
-                console.log("Starting Y Endstop offset: " + oldYStop);
+                oldBStop = parseInt(data.value);
+                console.log("Starting Y Endstop offset: " + oldBStop);
                 break;
 
               case "897":   // Z Endstop offset
-                oldZStop = parseInt(data.value);
-                console.log("Starting Z Endstop offset: " + oldZStop);
+                oldCStop = parseInt(data.value);
+                console.log("Starting Z Endstop offset: " + oldCStop);
                 break;
 
               case "901":  // X Tower Rotation offset
-                oldXPos = parseFloat(data.value - 210.00);
-                console.log("Starting X Pos. Offset: " + oldXPos);
+                oldAPos = parseFloat(data.value - 210.00);
+                console.log("Starting X Pos. Offset: " + oldAPos);
                 break;
 
               case "905":  // Y Tower Rotation offset
-                oldYPos = parseFloat(data.value - 330.00);
-                console.log("Starting Y Pos. Offset: " + oldYPos);
+                oldBPos = parseFloat(data.value - 330.00);
+                console.log("Starting Y Pos. Offset: " + oldBPos);
                 break;
 
               case "909":  // Z Tower rotation offset
-                oldZPos = parseFloat(data.value - 90.00);
-                console.log("Starting Y Pos. Offset: " + oldZPos);
+                oldCPos = parseFloat(data.value - 90.00);
+                console.log("Starting Y Pos. Offset: " + oldCPos);
                 break;
 
               default:
@@ -455,7 +445,7 @@ $(function () {
           });
 
           deltaParams = new DeltaParameters(oldRodLength, oldRadius, oldHomedHeight,
-                                            oldXStop, oldYStop, oldZStop, oldXPos, oldYPos, oldZPos);
+                                            oldAStop, oldBStop, oldCStop, oldAPos, oldBPos, oldCPos);
                                             calcProbePoints();
         }
 
@@ -463,9 +453,9 @@ $(function () {
           var endstopFactor = (firmware == "RRF") ? 1.0
             : (firmware == "Repetier") ? 1.0 / stepsPerMM
               : -1.0;
-              deltaParams.xstop *= endstopFactor;
-              deltaParams.ystop *= endstopFactor;
-              deltaParams.zstop *= endstopFactor;
+              deltaParams.astop *= endstopFactor;
+              deltaParams.bstop *= endstopFactor;
+              deltaParams.cstop *= endstopFactor;
         }
 
         function convertOutgoingEndstops() {
@@ -473,22 +463,22 @@ $(function () {
             : (firmware == "Repetier") ? (stepsPerMM)
               : -1.0;
               console.log("FW: " + firmware);
-              deltaParams.xstop *= endstopFactor;
-              deltaParams.ystop *= endstopFactor;
-              deltaParams.zstop *= endstopFactor;
+              deltaParams.astop *= endstopFactor;
+              deltaParams.bstop *= endstopFactor;
+              deltaParams.cstop *= endstopFactor;
         }
 
         function setNewParameters() {
           var endstopPlaces = (firmware == "Repetier") ? 0 : 2;
-          newXStop = deltaParams.xstop.toFixed(endstopPlaces);
-          newYStop = deltaParams.ystop.toFixed(endstopPlaces);
-          newZStop = deltaParams.zstop.toFixed(endstopPlaces);
+          newAStop = deltaParams.astop.toFixed(endstopPlaces);
+          newBStop = deltaParams.bstop.toFixed(endstopPlaces);
+          newCStop = deltaParams.cstop.toFixed(endstopPlaces);
           newRodLength = deltaParams.diagonal.toFixed(2);
           newRadius = deltaParams.radius.toFixed(2);
           newHomedHeight = deltaParams.homedHeight.toFixed(2);
-          newXPos = deltaParams.xadj.toFixed(2);
-          newYPos = deltaParams.yadj.toFixed(2);
-          newZPos = deltaParams.zadj.toFixed(2);
+          newAPos = deltaParams.aadj.toFixed(2);
+          newBPos = deltaParams.badj.toFixed(2);
+          newCPos = deltaParams.cadj.toFixed(2);
         }
 
         self.beginDeltaCal = function () {
@@ -508,8 +498,13 @@ $(function () {
           // build it all right now.
           var strCommandBuffer = [];
 
+	  // temporarily variables
+	  var xProbePoint = 0.0;
+	  var yProbePoint = 0.0;
           for(var x = 0; x < numPoints; x++) {
-            strCommandBuffer.push("G0 X"  + xBedProbePoints[x] + " Y" + yBedProbePoints[x] + " Z" + DEFAULT_PROBE_HEIGHT + " F6500");
+	    xProbePoint = xBedProbePoints[x] + ZProbeXOffset;
+	    yProbePoint = yBedProbePoints[x] + ZProbeYOffset;
+            strCommandBuffer.push("G0 X"  + xBedProbePoint + " Y" + yBedProbePoint + " Z" + ZProbeHeight + " F6500");
             strCommandBuffer.push("G30");
           }
           self.control.sendCustomCommand({ commands: strCommandBuffer});
@@ -526,27 +521,27 @@ $(function () {
 
             if( oldDeviation != newDeviation ){
               //Hacky fix to get the adjustments to go the right way!
-              var newXStop = Math.round(deltaParams.xstop.toFixed(2));
-              var newYStop = Math.round(deltaParams.ystop.toFixed(2));
-              var newZStop = Math.round(deltaParams.zstop.toFixed(2));
+              var newAStop = Math.round(deltaParams.astop.toFixed(2));
+              var newBStop = Math.round(deltaParams.bstop.toFixed(2));
+              var newCStop = Math.round(deltaParams.cstop.toFixed(2));
               var newDiagonal = deltaParams.diagonal.toFixed(2);
               var newRadius = deltaParams.radius.toFixed(2);
               var newHomedHeight = deltaParams.homedHeight.toFixed(2);
 
               console.log("========================================")
-              self.saveEEPROMData(1, "893", newXStop);
-              console.log("X Stop offset is " + newXStop + " steps.");
-              self.saveEEPROMData(1, "895", newYStop);
-              console.log("Y Stop offset is " + newYStop + " steps.");
-              self.saveEEPROMData(1, "897", newZStop);
-              console.log("Z Stop offset is " + newZStop + " steps.");
+              self.saveEEPROMData(1, "893", newAStop);
+              console.log("A Stop offset is " + newAStop + " steps.");
+              self.saveEEPROMData(1, "895", newBStop);
+              console.log("B Stop offset is " + newBStop + " steps.");
+              self.saveEEPROMData(1, "897", newCStop);
+              console.log("C Stop offset is " + newCStop + " steps.");
 
-              self.saveEEPROMData(3, "901", (210 + parseFloat(newXPos)));
-              console.log("Corrected Alpha A(210) to " + (210 + parseFloat(newXPos)) + ".");
-              self.saveEEPROMData(3, "905", (330 + parseFloat(newYPos)));
-              console.log("Corrected Alpha B(330) to " + (330 + parseFloat(newYPos)) + ".");
-              self.saveEEPROMData(3, "909", (90 + parseFloat(newZPos)));
-              console.log("Corrected Alpha C(90) to  " + (90 + parseFloat(newZPos)) + ".");
+              self.saveEEPROMData(3, "901", (210 + parseFloat(newAPos)));
+              console.log("Corrected Alpha A(210) to " + (210 + parseFloat(newAPos)) + ".");
+              self.saveEEPROMData(3, "905", (330 + parseFloat(newBPos)));
+              console.log("Corrected Alpha B(330) to " + (330 + parseFloat(newBPos)) + ".");
+              self.saveEEPROMData(3, "909", (90 + parseFloat(newCPos)));
+              console.log("Corrected Alpha C(90) to  " + (90 + parseFloat(newCPos)) + ".");
 
 
               self.saveEEPROMData(3, "881", newDiagonal);
@@ -702,34 +697,6 @@ $(function () {
                 console.log("Firmware: " + line);
                 if (self.repetierRegEx.exec(match[0])) {
                   self.isRepetierFirmware(true);
-                  self.isSeeMeCNCPrinter(false); //.. unless otherwise!
-                  if (line.includes("ORION Delta")) {
-                    self.machineType = SMC_ORION;
-                    self.isSeeMeCNCPrinter(true);
-                    self.printerType("Orion Delta")
-                  }
-                  if (line.includes("Rostock Max v2")) {
-                    self.machineType = SMC_MAX_V2;
-                    self.isSeeMeCNCPrinter(true);
-                    self.printerType("Rostock Max v2");
-                  }
-                  if (line.includes("ERIS Delta")) {
-                    self.machineType = SMC_ERIS;
-                    self.isSeeMeCNCPrinter(true);
-                    self.printerType("Eris Delta");
-                  }
-                  if (line.includes("Rostock MAX v3")) {
-                    self.machineType = SMC_MAX_V3;
-                    self.isSeeMeCNCPrinter(true);
-                    self.printerType("Rostock Max v3");
-                  }
-                  if (line.includes("Hacker H2")) {
-                    self.machineType = SMC_H2;
-                    self.isSeeMeCNCPrinter(true);
-                    self.printerType("Hacker H2");
-                  }
-
-                  console.log("Printer " + self.printerType());
                 }
               }
             });
@@ -756,7 +723,7 @@ $(function () {
                   self.sentM114 = false;
                 }
               }
-              if (self.probingActive && line.includes("PROBE-ZOFFSET")) {
+              if (self.probingActive && line.includes("Z-Probe:")) {
                 var zCoord = line.split(":");
                 self.statusMessage(self.statusMessage() + ".");
                 console.log(" Probe #" + parseInt(self.probeCount + 1) + " value: " + parseFloat(zCoord[2]));
