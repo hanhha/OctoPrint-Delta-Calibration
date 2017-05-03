@@ -4,12 +4,12 @@ Currently support only Repetier Firmware.<br><br>
 Usage: Click "Load EEPROM" to load the EEPROM into the calibration software and then click "Begin Delta Calibration".<br>
 You'll need to click "Load EEPROM" before each click of "Begin Delta Calibration".<br><br>
 <strong>Connection Status: <span style="color: green" data-bind="visible: isConnected()">connected</span>
-<span style="color: red" data-bind="visible: !isConnected()">not connected</span></strong><br>
+<span style="color: red" data-bind="visible: !isConnected()">not connected</span></strong>
+<br>
 <br>
 
 
 <form class="form-horizontal">
-<!---
     <table>
         <tr>
             <td>Number of Probe Points: </td>
@@ -20,10 +20,9 @@ You'll need to click "Load EEPROM" before each click of "Begin Delta Calibration
             <td><select data-bind="options: [4,5,6,7], value: calibrationFactors"></select></td>
         </tr>    
     </table>
--->
     <br>
     <button data-bind="enabled: isRepetierFirmware, click: loadEEProm">{{ _('Load EEprom') }}</button>
-    <button data-bind="enable: isRepetierFirmware() && isConnected(), click: beginDeltaCal">{{ _('Begin Delta Calibration') }}</button>
+    <button data-bind="enable: isRepetierFirmware() && isConnected() && isEepromLoaded, click: beginDeltaCal">{{ _('Begin Delta Calibration') }}</button>
 	
     <br><br><strong>Progress: </strong><span data-bind="text: statusMessage"></span><br>
     <br><br><strong>Calibration Result: </strong><span data-bind="text: statusCalResult"></span><br>

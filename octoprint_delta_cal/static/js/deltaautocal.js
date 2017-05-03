@@ -13,6 +13,7 @@ $(function () {
         // this creates functions that can be set here in code and can be referenced
         // externally via the jinja2 file.
         self.isRepetierFirmware = ko.observable(false);
+	self.isEepromLoaded = ko.observable(false);
 
         self.eepromData = ko.observableArray([]);
 
@@ -555,6 +556,7 @@ $(function () {
               self.statusMessage("Success, changes written to EEPROM.");
               self.control.sendCustomCommand({ command: "G28" });
               console.log(self.statusMessage());
+	      self.isEepromLoaded(false);
             }else{
               self.statusMessage("New calibration is not measureably better than the old - keeping the old calibration");
             }
@@ -770,6 +772,7 @@ $(function () {
         self.loadEEProm = function () {
           self.eepromData([]);
           self.readEEPROMData();
+	  self.isEepromLoaded(true);
         };
 
         self.showCoords = function () {
