@@ -14,11 +14,21 @@ $(function () {
         // externally via the jinja2 file.
         self.isRepetierFirmware = ko.observable(false);
 	self.isEepromLoaded = ko.observable(false);
+	self.isEepromRequested = false;
+	self.EepromCnt = 0;
 
         self.eepromData = ko.observableArray([]);
 
         self.statusMessage = ko.observable("");
         self.statusCalResult = ko.observable("");
+
+	self.isNotWorking = ko.observable(true);
+	self.isCalibrating = false;
+
+	// Calibration parameters
+	self.probePoints = ko.observable(10);
+	self.calibrationFactors = ko.observable(6);
+	self.probeRadius = ko.observable(60);
 
         // Delta Calibration variables.
         self.sentM114 = false;
@@ -34,11 +44,17 @@ $(function () {
 	var ZProbeXOffset = 0.0;
 	var ZProbeYOffset = 0.0;
 	var ZProbeHeight = 0.0;
+	var ZProbeBeddist = 5.0;
+
+        var initialPoints = function () {
+	  return self.probePoints();
+	}
+
+        var initialFactors = function () {
+	  return self.calibrationFactors(); 
+	}
 
         // dc42 code
-        var initialPoints = 10; // Was 7.  If I'd wanted it changed, I would have changed it myself!
-        var initialFactors = 6; // Only 6 factor! 7 screws with the diagonal rod length 
-                                // and causes scaling errors -gwb 24Dec16
         var deltaParams;
         var firmware = "Repetier";
         var bedRadius;
@@ -379,6 +395,10 @@ $(function () {
 		stepsPerMM = parseFloat(data.value);
 	        break;
 
+	      case "929": // Max. z-probe - bed dist
+		ZProbeBeddist = parseFloat(data.value);
+		break;
+
 	      case "808": // Z-Probe height
 		ZProbeHeight = parseFloat(data.value);
 	        break;
@@ -447,7 +467,13 @@ $(function () {
 
           deltaParams = new DeltaParameters(oldRodLength, oldRadius, oldHomedHeight,
                                             oldAStop, oldBStop, oldCStop, oldAPos, oldBPos, oldCPos);
-                                            calcProbePoints();
+	  if (self.probeRadius() != 0) {
+	    bedRadius = self.probeRadius();
+	  }
+	  self.statusMessage("Probe radius is " + bedRadius);
+          console.log(self.statusMessage());
+          
+	  calcProbePoints();
         }
 
         function convertIncomingEndstops() {
@@ -483,8 +509,10 @@ $(function () {
         }
 
         self.beginDeltaCal = function () {
-          numPoints = initialPoints;  // these should be configurable at some point.
-          numFactors = initialFactors;
+	  self.isNotWorking(false);
+	  self.isCalibrating = true;
+          numPoints = initialPoints();  // these should be configurable at some point.
+          numFactors = initialFactors();
           self.statusCalResult("");
 
           firmware = "Repetier";
@@ -502,14 +530,66 @@ $(function () {
 	  // temporarily variables
 	  var xProbePoint = 0.0;
 	  var yProbePoint = 0.0;
+	  var zProbePoint = 0.0;
+
+	  self.statusMessage("# of Probe points is " + numPoints);
+
+	  zProbePoint =  ZProbeHeight + ZProbeBeddist;
+
           for(var x = 0; x < numPoints; x++) {
 	    xProbePoint = xBedProbePoints[x] + ZProbeXOffset;
 	    yProbePoint = yBedProbePoints[x] + ZProbeYOffset;
-            strCommandBuffer.push("G0 X"  + xBedProbePoint + " Y" + yBedProbePoint + " Z" + ZProbeHeight + " F6500");
-            strCommandBuffer.push("G30");
+	    self.statusMessage(xProbePoint + " : " + yProbePoint + " : " + zProbePoint);
+	    var cmd_strs = "G0 X"  + xProbePoint + " Y" + yProbePoint + " Z" + zProbePoint + " F6500";
+	    console.log(cmd_strs);
+            strCommandBuffer.push(cmd_strs);
+	    cmd_strs = "G30";
+	    console.log(cmd_strs);
+            strCommandBuffer.push(cmd_strs);
           }
-          self.control.sendCustomCommand({ commands: strCommandBuffer});
+	  self.control.sendCustomCommand({ commands: strCommandBuffer});
+        }
 
+        self.checkDeltaCal = function () {
+	  self.isNotWorking(false);
+	  self.isCalibrating = false;
+          numPoints = initialPoints();  // these should be configurable at some point.
+          numFactors = initialFactors();
+          self.statusCalResult("");
+
+          firmware = "Repetier";
+          // here's where we begin to accumulate the data needed to run the actual calculations.
+          setParameters();  // develops our probing points.
+          convertIncomingEndstops();
+
+          // kick off the first probe!
+          self.probeCount = 0;
+          self.probingActive = true;
+          self.control.sendCustomCommand({ command: "G28" }); // home first!
+          // build it all right now.
+          var strCommandBuffer = [];
+
+	  // temporarily variables
+	  var xProbePoint = 0.0;
+	  var yProbePoint = 0.0;
+	  var zProbePoint = 0.0;
+	  
+	  self.statusMessage("# of Probe points is " + numPoints);
+
+	  zProbePoint =  ZProbeHeight + ZProbeBeddist;
+
+          for(var x = 0; x < numPoints; x++) {
+	    xProbePoint = xBedProbePoints[x] + ZProbeXOffset;
+	    yProbePoint = yBedProbePoints[x] + ZProbeYOffset;
+	    self.statusMessage(xProbePoint + " : " + yProbePoint + " : " + zProbePoint);
+	    var cmd_strs = "G0 X"  + xProbePoint + " Y" + yProbePoint + " Z" + zProbePoint + " F6500";
+	    console.log(cmd_strs);
+            strCommandBuffer.push(cmd_strs);
+	    cmd_strs = "G30";
+	    console.log(cmd_strs);
+            strCommandBuffer.push(cmd_strs);
+          }
+	  self.control.sendCustomCommand({ commands: strCommandBuffer});
         }
 
         function startDeltaCalcEngine() {
@@ -566,15 +646,17 @@ $(function () {
             self.statusMessage(self.statusMessage() + "Error! - " + err);
             console.log("Error! - " + err);
           }
+	  self.isCalibrating = false;
+	  self.isNotWorking(true);
         }
 
         function DoDeltaCalibration() {
           if (numFactors != 3 && numFactors != 4 && numFactors != 6 && numFactors != 7) {
-            self.statusMessage(self.StatusMessage() + "Error: " + numFactors + " factors requested but only 3, 4, 6 and 7 supported");
+            self.statusMessage(self.statusMessage() + "Error: " + numFactors + " factors requested but only 3, 4, 6 and 7 supported");
             return;
           }
           if (numFactors > numPoints) {
-            self.statusMessage(self.StatusMessage() + "Error: need at least as many points as factors you want to calibrate");
+            self.statusMessage(self.statusMessage() + "Error: need at least as many points as factors you want to calibrate");
             return;
           }
 
@@ -673,12 +755,59 @@ $(function () {
         // End of dc42's code.
         ////////////////////////////////////////////////////////////////////////
 
+        function startDeltaCheckEngine() {
+
+          try {
+            var rslt = DoDeltaCheck();
+            self.probingActive = false; // all done!
+          }
+          catch (err) {
+            self.statusMessage(self.statusMessage() + "Error! - " + err);
+            console.log("Error! - " + err);
+          }
+	  self.isNotWorking(true);
+        }
+
+        function DoDeltaCheck() {
+          if (numFactors != 3 && numFactors != 4 && numFactors != 6 && numFactors != 7) {
+            self.statusMessage(self.statusMessage() + "Error: " + numFactors + " factors requested but only 3, 4, 6 and 7 supported");
+            return;
+          }
+          if (numFactors > numPoints) {
+            self.statusMessage(self.statusMessage() + "Error: need at least as many points as factors you want to calibrate");
+            return;
+          }
+
+          // Transform the probing points to motor endpoints and store them in a matrix, so that we can do multiple iterations using the same data
+          var probeMotorPositions = new Matrix(numPoints, 3);
+          var corrections = new Array(numPoints);
+          var initialSumOfSquares = 0.0;
+          for (var i = 0; i < numPoints; ++i) {
+            corrections[i] = 0.0;
+            var machinePos = [];
+            var xp = xBedProbePoints[i], yp = yBedProbePoints[i];
+            machinePos.push(xp);
+            machinePos.push(yp);
+            machinePos.push(0.0);
+
+            probeMotorPositions.data[i][0] = deltaParams.Transform(machinePos, 0);
+            probeMotorPositions.data[i][1] = deltaParams.Transform(machinePos, 1);
+            probeMotorPositions.data[i][2] = deltaParams.Transform(machinePos, 2);
+
+            initialSumOfSquares += fsquare(zBedProbePoints[i]);
+          }
+
+          oldDeviation = Math.sqrt(initialSumOfSquares / numPoints).toFixed(2);
+          var infoStr = "Calibration status for " + numFactors + " factors using " + numPoints + " points is " + oldDeviation;
+          console.log(infoStr);
+          self.statusCalResult(infoStr);
+        }
+
         self.onStartup = function () {
           $('#settings_plugin_delta_cal_link a').on('show', function (e) {
-            if (self.isConnected() && !self.isRepetierFirmware())
+            if (self.isConnected())
               self._requestFirmwareInfo();
           });
-          self.statusMessage("");
         }
 
         self.fromHistoryData = function (data) {
@@ -689,7 +818,7 @@ $(function () {
                 self.isRepetierFirmware(true);
             }
           });
-        };
+        }
 
         self.fromCurrentData = function (data) {
           if (!self.isRepetierFirmware()) {
@@ -708,15 +837,40 @@ $(function () {
             _.each(data.logs, function (line) {
               var match = self.eepromDataRegEx.exec(line);
               if (match) {
-                self.eepromData.push({
-                  dataType: match[1],
-                  position: match[2],
-                  origValue: match[3],
-                  value: match[3],
-                  description: match[4]
+		switch (match[2]) {
+	          case "11": // Steps per mm
+	          case "808": // Z-Probe height
+	          case "800": // Z-Probe X offset 
+	          case "804": // Z-Probe Y offset
+	          case "925": // Bed Radius 
+                  case "153":   // Max Z height
+                  case "881":  // Diagonal Rod length
+                  case "885":  // Diagonal Radius
+                  case "893":   // A Endstop offset
+                  case "895":   // Y Endstop offset
+                  case "897":   // Z Endstop offset
+                  case "901":  // X Tower Rotation offset
+                  case "905":  // Y Tower Rotation offset
+                  case "909":  // Z Tower rotation offset
+	          case "929": // Max. z-probe - bed dist
+		    self.EepromCnt += 1;
+                    self.eepromData.push({
+                      dataType: match[1],
+                      position: match[2],
+                      origValue: match[3],
+                      value: match[3],
+                      description: match[4]
 
-                });
-                console.log("Desc: " + line);
+                    });
+                    console.log("Desc: " + line);
+		    break;
+                  default:
+                    break;
+		}
+		if (self.EepromCnt == 15) {
+		  self.isEepromRequested = false;
+	  	  self.isEepromLoaded(true);
+		}
               }
               if (self.sentM114) {
                 if (line.includes("X") && line.includes("Y") && line.includes("Z") && line.includes("E")) {
@@ -725,19 +879,23 @@ $(function () {
                   self.sentM114 = false;
                 }
               }
-              if (self.probingActive && line.includes("Z-Probe:")) {
+              if (self.probingActive && line.includes("Z-probe:")) {
                 var zCoord = line.split(":");
                 self.statusMessage(self.statusMessage() + ".");
                 console.log(" Probe #" + parseInt(self.probeCount + 1) + " value: " + parseFloat(zCoord[2]));
                 zBedProbePoints[self.probeCount] = -parseFloat(zCoord[2]);
                 self.probeCount++;
                 if (self.probeCount == numPoints) {
-                  startDeltaCalcEngine();  // doooo eeeeeeet!
+		  if (self.isCalibrating) {
+                    startDeltaCalcEngine();  // doooo eeeeeeet!
+		  } else {
+		    startDeltaCheckEngine();
+		  }
                 }
               }
             });
           }
-        };
+        }
 
         self.isConnected = ko.computed(function () {
           return self.connection.isOperational() || self.connection.isPrinting() ||
@@ -745,17 +903,39 @@ $(function () {
         });
 
         self.onEventConnected = function () {
+	// Reset all variables
+          self.statusMessage("");
+          self.statusCalResult("");
+          self.isRepetierFirmware(false);
+	  self.isEepromLoaded(false);
+	  self.isEepromRequested = false;
+	  self.EepromCnt = 0;
+
+          self.eepromData([]);
+
+
+	  self.isNotWorking(true);
+	  self.isCalibrating = false;
+
+	  // Calibration parameters
+	  self.probePoints(10);
+	  self.calibrationFactors(6);
+
+          // Delta Calibration variables.
+          self.sentM114 = false;
+          self.probingActive = false;
+          self.probeCount = 0;  // so we can keep track of what probe iteration we're on.
+          self.commandText = "";  // where the commands to fix things will go for display purposes.
+
+          self.calibrationComplete = false;
+
           self._requestFirmwareInfo();
         }
 
         self.onEventDisconnected = function () {
           self.isRepetierFirmware(false);
-        };
+        }
 
-        // function requestEepromData() {
-        //   self.control.sendCustomCommand({ command: "M205" });
-        // }
-        
         self.saveEEPROMData = function (data_type, position, value) {
           var cmd = "M206 T" + data_type + " P" + position;
           if (data_type == 3) {
@@ -769,11 +949,13 @@ $(function () {
             self.control.sendCustomCommand({ command: cmd });
           }
         }
+
         self.loadEEProm = function () {
           self.eepromData([]);
+	  self.isEepromRequested = true;
+	  self.EepromCnt = 0;
           self.readEEPROMData();
-	  self.isEepromLoaded(true);
-        };
+        }
 
         self.showCoords = function () {
           self.control.sendCustomCommand({ command: "M114" });
@@ -783,22 +965,11 @@ $(function () {
 
         self._requestFirmwareInfo = function () {
           self.control.sendCustomCommand({ command: "M115" });
-        };
+        }
 
         self.readEEPROMData = function () {
           self.control.sendCustomCommand({ command: "M205" });
         }
-        // self._requestsaveEEPROMData = function (data_type, position, value) {
-        //   var cmd = "M206 T" + data_type + " P" + position;
-        //   if (data_type == 3) {
-        //     cmd += " X" + value;
-        //     self.control.sendCustomCommand({ command: cmd });
-        //   }
-        //   else {
-        //     cmd += " S" + value;
-        //     self.control.sendCustomCommand({ command: cmd });
-        //   }
-        // }
     }
 
     OCTOPRINT_VIEWMODELS.push([ DeltaAutoCalViewModel, ["controlViewModel", "connectionViewModel"], "#settings_plugin_delta_cal" ]);

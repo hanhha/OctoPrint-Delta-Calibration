@@ -4,7 +4,7 @@ from __future__ import absolute_import
 import octoprint.plugin
 import octoprint.server
 
-class DeltaCalPlugin(octoprint.plugin.StartupPlugin, octoprint.plugin.AssetPlugin,
+class DeltaCalPlugin(octoprint.plugin.AssetPlugin,
                             octoprint.plugin.TemplatePlugin):
     def on_after_startup(self):
         self._logger.info("Octoprint Delta Auto Calibration started up!")

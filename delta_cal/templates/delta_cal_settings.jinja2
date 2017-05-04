@@ -1,0 +1,42 @@
+<h4>Delta Auto Calibration Plugin</h4>
+Currently support only Repetier Firmware.<br><br>
+<strong>Connection Status: <span style="color: green" data-bind="visible: isConnected()">connected</span>
+<span style="color: red" data-bind="visible: !isConnected()">not connected</span></strong>
+<br>
+
+<form class="form-horizontal">
+    <table>
+        <tr>
+            <td>Number of Probe Points: </td>
+            <td><select data-bind="options: [4,7,10], value: probePoints"></select></td>
+        </tr>
+        <tr>
+            <td>Number of Calbration Factors: </td>
+            <td><select data-bind="options: [4,5,6,7], value: calibrationFactors"></select></td>
+        </tr>    
+        <tr>
+            <td>Probe Radius (0 == bed radius): </td>
+            <td><input data-bind="value: probeRadius"></></td>
+        </tr>    
+    </table>
+    <br>
+    <button data-bind="enabled: isRepetierFirmware, click: loadEEProm">{{ _('Load EEprom') }}</button>
+    <button data-bind="enable: isRepetierFirmware() && isConnected() && isEepromLoaded() && isNotWorking, click: beginDeltaCal">{{ _('Begin Delta Calibration') }}</button>
+    <button data-bind="enable: isRepetierFirmware() && isConnected() && isEepromLoaded() && isNotWorking, click: checkDeltaCal">{{ _('Check Delta Calibration') }}</button>
+	
+    <br><br><strong>Progress: </strong><span data-bind="text: statusMessage"></span><br>
+    <br><br><strong>Calibration Result: </strong><span data-bind="text: statusCalResult"></span><br>
+</form>
+<br>
+
+<strong>EEPROM data - click load EEprom to reload</strong>
+<div data-bind="foreach: eepromData">
+    <form class="form-horizontal">
+        <div class="control-group">
+            <label class="control-label" style="width: 300px" data-bind="text: description, attr: { 'for': position }"></label>
+            <div class="controls" style="margin-left: 320px; width: 30%" >
+                <input type="text" class="input-block-level" data-bind="value: value, attr: { 'id': position }">
+            </div>
+        </div>
+    </form>
+</div>
