@@ -54,6 +54,10 @@ $(function () {
 	  return self.calibrationFactors(); 
 	}
 
+	var defaultzBedProbePoint = function () {
+	  return ZProbeHeight + ZProbeBeddist + 5;
+	}
+	
         // dc42 code
         var deltaParams;
         var firmware = "Repetier";
@@ -346,40 +350,39 @@ $(function () {
           return rslt;
         }
 
-
         function calcProbePoints() {
           if (numPoints == 4) {
             for (var i = 0; i < 3; ++i) {
               xBedProbePoints[i] = (bedRadius * Math.sin((2 * Math.PI * i) / 3)).toFixed(2);
               yBedProbePoints[i] = (bedRadius * Math.cos((2 * Math.PI * i) / 3)).toFixed(2);
-              zBedProbePoints[i] = 0.0; // we default this to zero -gwb
+              zBedProbePoints[i] = defaultzBedProbePoint();
             }
             xBedProbePoints[3] = 0.0;
             yBedProbePoints[3] = 0.0;
-            zBedProbePoints[3] = 0.0;
+            zBedProbePoints[3] = defaultzBedProbePoint();
           }
           else {
             if (numPoints >= 7) {
               for (var i = 0; i < 6; ++i) {
                 xBedProbePoints[i] = (bedRadius * Math.sin((2 * Math.PI * i) / 6)).toFixed(2);
                 yBedProbePoints[i] = (bedRadius * Math.cos((2 * Math.PI * i) / 6)).toFixed(2);
-                zBedProbePoints[i] = 0.0; // we default this to zero -gwb
+                zBedProbePoints[i] = defaultzBedProbePoint();
               }
             }
             if (numPoints >= 10) {
               for (var i = 6; i < 9; ++i) {
                 xBedProbePoints[i] = (bedRadius / 2 * Math.sin((2 * Math.PI * (i - 6)) / 3)).toFixed(2);
                 yBedProbePoints[i] = (bedRadius / 2 * Math.cos((2 * Math.PI * (i - 6)) / 3)).toFixed(2);
-                zBedProbePoints[i] = 0.0; // we default this to zero -gwb
+                zBedProbePoints[i] = defaultzBedProbePoint();
               }
               xBedProbePoints[9] = 0.0;
               yBedProbePoints[9] = 0.0;
-              zBedProbePoints[9] = 0.0;
+              zBedProbePoints[9] = defaultzBedProbePoint();
             }
             else {
               xBedProbePoints[6] = 0.0;
               yBedProbePoints[6] = 0.0;
-              zBedProbePoints[6] = 0.0;
+              zBedProbePoints[6] = defaultzBedProbePoint();
             }
           }
         }
@@ -530,17 +533,14 @@ $(function () {
 	  // temporarily variables
 	  var xProbePoint = 0.0;
 	  var yProbePoint = 0.0;
-	  var zProbePoint = 0.0;
 
-	  self.statusMessage("# of Probe points is " + numPoints);
+	  //self.statusMessage("# of Probe points is " + numPoints);
 
-	  zProbePoint =  ZProbeHeight + ZProbeBeddist;
 
           for(var x = 0; x < numPoints; x++) {
 	    xProbePoint = xBedProbePoints[x] + ZProbeXOffset;
 	    yProbePoint = yBedProbePoints[x] + ZProbeYOffset;
-	    self.statusMessage(xProbePoint + " : " + yProbePoint + " : " + zProbePoint);
-	    var cmd_strs = "G0 X"  + xProbePoint + " Y" + yProbePoint + " Z" + zProbePoint + " F6500";
+	    var cmd_strs = "G0 X"  + xProbePoint + " Y" + yProbePoint + " Z" + defaultzBedProbePoint() + " F6500";
 	    console.log(cmd_strs);
             strCommandBuffer.push(cmd_strs);
 	    cmd_strs = "G30";
@@ -574,15 +574,14 @@ $(function () {
 	  var yProbePoint = 0.0;
 	  var zProbePoint = 0.0;
 	  
-	  self.statusMessage("# of Probe points is " + numPoints);
+	  //self.statusMessage("# of Probe points is " + numPoints);
 
-	  zProbePoint =  ZProbeHeight + ZProbeBeddist;
+	  zProbePoint =  ZProbeHeight + ZProbeBeddist + 5;
 
           for(var x = 0; x < numPoints; x++) {
 	    xProbePoint = xBedProbePoints[x] + ZProbeXOffset;
 	    yProbePoint = yBedProbePoints[x] + ZProbeYOffset;
-	    self.statusMessage(xProbePoint + " : " + yProbePoint + " : " + zProbePoint);
-	    var cmd_strs = "G0 X"  + xProbePoint + " Y" + yProbePoint + " Z" + zProbePoint + " F6500";
+	    var cmd_strs = "G0 X"  + xProbePoint + " Y" + yProbePoint + " Z" + defaultzBedProbePoint() + " F6500";
 	    console.log(cmd_strs);
             strCommandBuffer.push(cmd_strs);
 	    cmd_strs = "G30";
