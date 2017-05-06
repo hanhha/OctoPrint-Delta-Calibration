@@ -31,8 +31,11 @@ Before running this utility on your printer, you should issue a G29 command via 
 terminal.  This will kick off the internal calibration and will get the Z height properly set.
 
 In order to use the plugin, click on the Settings link in OctoPrint and then click on the
-"Delta Autocalibration" link that's listed in the Plugins pane on the lower left.
+"Delta Autocalibration" link that's listed in the Plugins pane on the lower left. Then perform following steps in order (you will not be able to do in different order, only suitable buttons would be enabled):
+- Click "Validate Z Max" button to measure real Z Max Height.
+- Click "Load EEprom" button to load printer's parameters from EEProm.
+- Click "Begin Delta Calibration" button to start calibration process, or "Check Delta Calibration" to verify the tolerance.
 
-Click the Load EEPROM button and then click the Begin Delta Calibration button or Check Delta Calibration button.
-Enjoy buddies.
+My limited knowledge about Javascript is not enough to implement doing all steps in one button :D 
+Enjoy.
 

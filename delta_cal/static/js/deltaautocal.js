@@ -528,10 +528,10 @@ $(function () {
     self.beginGetHomeProbe = function () {
       self.isNotWorking(false);
       self.probingActive = true;
+      stOp = 2;
       console.log("G28");
       self.control.sendCustomCommand({ command: "G28" }); // home
       console.log("G29 S2");
-      stOp = 2;
       self.control.sendCustomCommand({ command: "G29 S2" }); // single z-probe at x0 y0 zMax first 
     }
 
@@ -563,11 +563,10 @@ $(function () {
       var ProbeXYFeedrate = ZProbeXYSpeed * 60;
       var cmd_strs = "";
 
-      //self.statusMessage("# of Probe points is " + numPoints);
+      console.log("# of Probe points is " + numPoints);
       cmd_strs = "G0 X0 Y0 Z" + ZProbeHeightAdjust() + " F6000";
       console.log(cmd_strs);
       self.control.sendCustomCommand({ command: cmd_strs }); // go to ready line 
-
 
       for(var x = 0; x < numPoints; x++) {
         xProbePoint = xBedProbePoints[x] + ZProbeXOffset;
@@ -611,8 +610,8 @@ $(function () {
       var ProbeXYFeedrate = ZProbeXYSpeed * 60;
       var cmd_strs = "";
 
-      //self.statusMessage("# of Probe points is " + numPoints);
-      cmd_strs = "G0 X0 Y0 Z" + zProbePoint + " F6000";
+      console.log("# of Probe points is " + numPoints);
+      cmd_strs = "G0 X0 Y0 Z" + ZProbeHeightAdjust() + " F6000";
       console.log(cmd_strs);
       self.control.sendCustomCommand({ command: cmd_strs }); // go to ready line 
 
@@ -934,7 +933,6 @@ $(function () {
                       origValue: match[3],
                       value: match[3],
                       description: match[4]
-
                     });
                     console.log("Desc: " + line);
                     break;
@@ -943,44 +941,46 @@ $(function () {
                 }
                 if (self.EepromCnt == 16) {
                   self.isEepromLoaded(true);
+	          self.isNotWorking(true);
                 }
               }
               break;
             case 2: // get real home height
               if (self.probingActive && line.includes("Printer height:")) {
                 var zCoord = line.split(":");
-                self.statusMessage("Current real home height is " + parseFloat(zCoord[2]);
-                    console.log("Current real home height is " + parseFloat(zCoord[2]);
-                      }
-                      self.probingActive = false; // all done!
-                      self.isHomeHeighValidated(true);
-                      break;
-                      case 3: // checking tolerance, not calibrating
-                      if (self.probingActive && line.includes("Z-probe:")) {
-                        var zCoord = line.split(":");
-                        self.statusMessage(self.statusMessage() + ".");
-                        console.log(" Probe #" + parseInt(self.probeCount + 1) + " value: " + parseFloat(zCoord[2]));
-                        zBedProbePoints[self.probeCount] = -(parseFloat(zCoord[2]) - ZProbeHeightAdjust());
-                        self.probeCount++;
-                        if (self.probeCount == numPoints) {
-                          startDeltaCheckEngine();
-                        }
-                      }
-                      break;
-                      case 4: // calibrating
-                      if (self.probingActive && line.includes("Z-probe:")) {
-                        var zCoord = line.split(":");
-                        self.statusMessage(self.statusMessage() + ".");
-                        console.log(" Probe #" + parseInt(self.probeCount + 1) + " value: " + parseFloat(zCoord[2]));
-                        zBedProbePoints[self.probeCount] = -(parseFloat(zCoord[2]) - ZProbeHeightAdjust());
-                        self.probeCount++;
-                        if (self.probeCount == numPoints) {
-                          startDeltaCalcEngine();  // doooo eeeeeeet!
-                        }
-                      }
-                      break;
-                      default:
-                      break;
+                self.statusMessage("Current real home height is " + parseFloat(zCoord[2]));
+                console.log("Current real home height is " + parseFloat(zCoord[2]));
+                self.probingActive = false; // all done!
+                self.isHomeHeighValidated(true);
+	        self.isNotWorking(true);
+              }
+              break;
+            case 3: // checking tolerance, not calibrating
+              if (self.probingActive && line.includes("Z-probe:")) {
+                var zCoord = line.split(":");
+                self.statusMessage(self.statusMessage() + ".");
+                console.log(" Probe #" + parseInt(self.probeCount + 1) + " value: " + parseFloat(zCoord[2]));
+                zBedProbePoints[self.probeCount] = -(parseFloat(zCoord[2]) - ZProbeHeightAdjust());
+                self.probeCount++;
+                if (self.probeCount == numPoints) {
+                  startDeltaCheckEngine();
+                }
+              }
+              break;
+            case 4: // calibrating
+              if (self.probingActive && line.includes("Z-probe:")) {
+                var zCoord = line.split(":");
+                self.statusMessage(self.statusMessage() + ".");
+                console.log(" Probe #" + parseInt(self.probeCount + 1) + " value: " + parseFloat(zCoord[2]));
+                zBedProbePoints[self.probeCount] = -(parseFloat(zCoord[2]) - ZProbeHeightAdjust());
+                self.probeCount++;
+                if (self.probeCount == numPoints) {
+                  startDeltaCalcEngine();  // doooo eeeeeeet!
+                }
+              }
+              break;
+            default:
+              break;
           }
         });
       }
@@ -1018,6 +1018,8 @@ $(function () {
       self.eepromData([]);
       self.EepromCnt = 0;
       stOp = 1;
+      self.isNotWorking(false);
+      self.isEepromLoaded(false);
       self.readEEPROMData();
     }
 
