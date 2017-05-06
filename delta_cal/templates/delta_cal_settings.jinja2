@@ -20,9 +20,10 @@ Currently support only Repetier Firmware.<br><br>
         </tr>    
     </table>
     <br>
-    <button data-bind="enabled: isRepetierFirmware, click: loadEEProm">{{ _('Load EEprom') }}</button>
-    <button data-bind="enable: isRepetierFirmware() && isConnected() && isEepromLoaded() && isNotWorking, click: beginDeltaCal">{{ _('Begin Delta Calibration') }}</button>
-    <button data-bind="enable: isRepetierFirmware() && isConnected() && isEepromLoaded() && isNotWorking, click: checkDeltaCal">{{ _('Check Delta Calibration') }}</button>
+    <button data-bind="enabled: isConnected() && isRepetierFirmware && isNotWorking, click: beginGetHomeProbe">{{ _('Validate Z Max') }}</button>
+    <button data-bind="enable: isRepetierFirmware && isConnected() && isNotWorking && isHomeHeighValidated, click: loadEEProm">{{ _('Load EEprom') }}</button>
+    <button data-bind="enable: isRepetierFirmware && isConnected() && isEepromLoaded && isNotWorking && isHomeHeighValidated, click: beginDeltaCal">{{ _('Begin Delta Calibration') }}</button>
+    <button data-bind="enable: isRepetierFirmware && isConnected() && isEepromLoaded && isNotWorking && isHomeHeighValidated, click: checkDeltaCal">{{ _('Check Delta Calibration') }}</button>
 	
     <br><br><strong>Progress: </strong><span data-bind="text: statusMessage"></span><br>
     <br><br><strong>Calibration Result: </strong><span data-bind="text: statusCalResult"></span><br>
