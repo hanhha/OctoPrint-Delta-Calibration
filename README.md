@@ -25,10 +25,7 @@ To use this plugin, you can install it using pip from a shell prompt:
 If you're working with an OctoPi distribution, you can sign into the "pi" account and
 install the plugin this way:
 
-    /home/pI/oprint/bin/pip install https://github.com/hanhha/OctoPrint-Delta-Calibration/archive/master.zip
-
-Before running this utility on your printer, you should issue a G29 command via the OctoPrint
-terminal.  This will kick off the internal calibration and will get the Z height properly set.
+    /home/pi/oprint/bin/pip install https://github.com/hanhha/OctoPrint-Delta-Calibration/archive/master.zip
 
 In order to use the plugin, click on the Settings link in OctoPrint and then click on the
 "Delta Autocalibration" link that's listed in the Plugins pane on the lower left. Then perform following steps in order (you will not be able to do in different order, only suitable buttons would be enabled):
