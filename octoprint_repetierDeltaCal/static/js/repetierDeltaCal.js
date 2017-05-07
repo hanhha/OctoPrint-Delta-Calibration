@@ -1,6 +1,6 @@
 $(function () {
   "use strict";
-  function DeltaAutoCalViewModel(parameters) {
+  function RepetierDeltaCalViewModel(parameters) {
     var self = this;
     self.control = parameters[0];
     self.connection = parameters[1];
@@ -872,7 +872,7 @@ $(function () {
     }
 
     self.onStartup = function () {
-      $('#settings_plugin_delta_cal_link a').on('show', function (e) {
+      $('#settings_plugin_repetierDeltaCal_link a').on('show', function (e) {
         self.resetVariables();
         if (self.isConnected())
           self._requestFirmwareInfo();
@@ -1032,6 +1032,6 @@ $(function () {
     }
   }
 
-  OCTOPRINT_VIEWMODELS.push([ DeltaAutoCalViewModel, ["controlViewModel", "connectionViewModel"], "#settings_plugin_delta_cal" ]);
+  OCTOPRINT_VIEWMODELS.push([ RepetierDeltaCalViewModel, ["controlViewModel", "connectionViewModel"], "#settings_plugin_repetierDeltaCal" ]);
 
 });

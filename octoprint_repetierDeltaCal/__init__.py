@@ -4,25 +4,25 @@ from __future__ import absolute_import
 import octoprint.plugin
 import octoprint.server
 
-class DeltaCalPlugin(octoprint.plugin.AssetPlugin,
+class RepetierDeltaCalPlugin(octoprint.plugin.AssetPlugin,
                             octoprint.plugin.TemplatePlugin):
     def on_after_startup(self):
-        self._logger.info("Octoprint Delta Auto Calibration started up!")
+        self._logger.info("Octoprint Delta Auto Calibration for Repetier firmware started up!")
 		
     def get_assets(self):
         return dict(
-            js=["js/deltaautocal.js"]
+            js=["js/repetierDeltaCal.js"]
         )
 
     def get_template_configs(self):
         return [
-            dict(type="settings", template="delta_cal_settings.jinja2", custom_bindings=True)
+            dict(type="settings", template="repetierDeltaCal_settings.jinja2", custom_bindings=True)
         ]
 
     def get_update_information(self):
         return dict(
             systemcommandeditor=dict(
-                displayName="Delta Calibration Plugin",
+                displayName="Repetier Delta Calibration Plugin",
                 displayVersion=self._plugin_version,
 
                 # version check: github repository
@@ -36,11 +36,11 @@ class DeltaCalPlugin(octoprint.plugin.AssetPlugin,
             )
         )
 
-__plugin_name__ = "Delta Auto Calibration"
+__plugin_name__ = "Repetier Delta Calibration Plugin"
 
 def __plugin_load__():
     global __plugin_implementation__
-    __plugin_implementation__ = DeltaCalPlugin()
+    __plugin_implementation__ = RepetierDeltaCalPlugin()
 
     global __plugin_hooks__
     __plugin_hooks__ = {
